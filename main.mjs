@@ -34,8 +34,6 @@ client.on("messageCreate", async (msg) => {
 
     if (msg.content.startsWith("!") || msg.content.startsWith("！")) return
 
-    const nickname = msg.member?.nickname || msg.author.username;
-
     if (msg.reference) {
         const replyChain = await getReplyChain(msg);
         // msg.content = "発言者:" + nickname + " 発言内容:" +  msg.content
@@ -71,29 +69,40 @@ async function getReplyChain(message) {
 
 const openai = new OpenAIApi(configuration);
 
-const getSysPrompt = async () => {
-    const { data } = await axios.get(SYS_API)
-    sysprompt = data
-    return data
+const getSysPrompt = () => {
+    return sysprompt
 }
 
-const generateReply = async (user) => {
+const getPromptTask = async () => {
+    const { data } = await axios.get(SYS_API)
+    sysprompt = data
+}
+
+setInterval(getPromptTask, 1000 * 60 )
+await getPromptTask()
+
+const gpt3 = "gpt-3.5-turbo"
+const gpt4 = "gpt-4"
+
+const generateReply = async (userPrompt) => {
+    const isGPT3 = userPrompt.includes("gpt3")
+
     const completion = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: isGPT3 ? gpt3 : gpt4,
         messages: [
-            { "role": "system", "content": await getSysPrompt() },
+            { "role": "system", "content": getSysPrompt() },
             { "role": "user", "content": user }
         ],
     });
 
-    var reply = completion.data.choices[0].message.content;
+    const reply = completion.data.choices[0].message.content;
     console.log(reply.slice(0, 10), completion.data.usage.total_tokens)
     return reply
 }
 
 const generateReplyWithRef = async (prompt) => {
     const msgs = [
-        { "role": "system", "content": await getSysPrompt() }
+        { "role": "system", "content": getSysPrompt() }
     ]
     if (prompt.length >= 6) {
         prompt = prompt.slice(-6)
@@ -113,9 +122,10 @@ const generateReplyWithRef = async (prompt) => {
         }
     })
 
+    const isGPT3 = msgs.filter(m => m.role === "user").some(p => p.content.includes("gpt3"))
 
     const completion = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
+        model: isGPT3 ? gpt3 : gpt4,
         messages: msgs,
     });
 
