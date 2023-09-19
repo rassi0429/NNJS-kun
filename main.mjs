@@ -91,7 +91,7 @@ const generateReply = async (userPrompt) => {
         model: isGPT3 ? gpt3 : gpt4,
         messages: [
             { "role": "system", "content": getSysPrompt() },
-            { "role": "user", "content": user }
+            { "role": "user", "content": userPrompt }
         ],
     });
 
